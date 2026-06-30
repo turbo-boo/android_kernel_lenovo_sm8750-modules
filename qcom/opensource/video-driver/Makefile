@@ -17,11 +17,7 @@ $(VIDEO_GEN_PATH): $(shell find . -type f \( -iname \*.c -o -iname \*.h -o -inam
 	echo '#define VIDEO_COMPILE_HOST "$(VIDEO_COMPILE_HOST)"' >> $(VIDEO_GEN_PATH)
 
 modules: $(VIDEO_GEN_PATH)
-	ln -sf $(VIDEO_ROOT)/driver $(VIDEO_ROOT)/msm_video/driver
-	ln -sf $(VIDEO_ROOT)/driver $(VIDEO_ROOT)/video/driver
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) modules $(KBUILD_OPTIONS)
-	rm $(VIDEO_ROOT)/msm_video/driver
-	rm $(VIDEO_ROOT)/video/driver
 
 modules_install:
 	$(MAKE) INSTALL_MOD_STRIP=1 -C $(KERNEL_SRC) M=$(M) modules_install
