@@ -706,6 +706,8 @@ void sde_encoder_enable_recovery_event(struct drm_encoder *encoder);
  */
 bool sde_encoder_in_clone_mode(struct drm_encoder *enc);
 
+u32 sde_encoder_get_clones(struct drm_encoder *drm_enc);
+
 /**
  * sde_encoder_in_video_psr - checks if it is in video psr panel
  * @drm_enc:    Pointer to drm encoder structure

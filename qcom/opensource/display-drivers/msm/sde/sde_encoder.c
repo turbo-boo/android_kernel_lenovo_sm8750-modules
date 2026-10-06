@@ -53,8 +53,8 @@
 #include "sde_vm.h"
 #include "sde_fence.h"
 #include "sde_aiqe_common.h"
-#include "dsi_display.h"
-
+#include "sde_connector.h"
+#include "dsi_drm.h"
 #define SDE_DEBUG_ENC(e, fmt, ...) SDE_DEBUG("enc%d " fmt,\
 		(e) ? (e)->base.base.id : -1, ##__VA_ARGS__)
 
@@ -155,6 +155,8 @@ enum sde_enc_rc_events {
 	SDE_ENC_RC_EVENT_ENTER_IDLE,
 	SDE_ENC_RC_EVENT_EARLY_WAKEUP,
 };
+
+/* stock line alignment */
 
 void sde_encoder_uidle_enable(struct drm_encoder *drm_enc, bool enable)
 {
@@ -1000,7 +1002,7 @@ void sde_encoder_helper_split_config(
 			hw_mdptop->ops.setup_pp_split(hw_mdptop, cfg);
 	}
 }
-
+/* stock line alignment */
 bool sde_encoder_in_clone_mode(struct drm_encoder *drm_enc)
 {
 	struct sde_encoder_virt *sde_enc;
@@ -6831,13 +6833,84 @@ end:
 	SDE_ATRACE_END("sde_encoder_prepare_for_kickoff");
 	return ret;
 }
+int sde_encoder_vid_wait_for_active(struct drm_encoder *drm_enc)
+{
+	struct sde_encoder_virt *sde_enc;
+	struct sde_encoder_phys *phys;
+	struct drm_display_mode mode;
+	u32 line_count, min_line, max_line, retries = 15;
+	int i;
+
+	if (!drm_enc) {
+		SDE_ERROR("invalid encoder\n");
+		return -EINVAL;
+	}
+
+	sde_enc = to_sde_encoder_virt(drm_enc);
+	if (!sde_enc->num_phys_encs)
+		return -EINVAL;
+
+	for (i = 0; i < sde_enc->num_phys_encs; i++) {
+		/* Array access below preserves the vendor UBSAN bounds trap. */
+		/* Keep downstream diagnostic line numbers unchanged. */
+
+		phys = sde_enc->phys_encs[i];
+		if (!phys)
+			continue;
+
+		if (phys->ops.is_master && !phys->ops.is_master(phys))
+			continue;
+		if (!retries)
+			continue;
+
+		mode = phys->cached_mode;
+		min_line = mode.vsync_end - mode.vsync_start;
+		max_line = mode.vtotal - mode.vsync_start +
+				(mode.vdisplay * 3 >> 2);
+
+		while (retries) {
+			line_count = phys->ops.get_line_count(phys);
+			if (line_count > min_line && line_count < max_line)
+				return 0;
+
+			__const_udelay(2000 * 0x10c7UL);
+			retries--;
+		}
+	}
+
+	return -EINVAL;
+}
+
+bool is_skip_stage_fps_cmd_send(u32 current_fps, u32 target_fps, u32 stage)
+{
+	if (current_fps == 30 || current_fps == 60 || current_fps == 120) {
+		if (target_fps == 30 || target_fps == 60 || target_fps == 120)
+			return true;
+	}
+
+	if (stage == 1)
+		return false;
+
+	/* Unsupported switch stages are reported for non-pen transitions. */
+
+	printk(KERN_INFO "[drm:%s:%d] dsi: wrong stage = %d\n", __func__, __LINE__, stage);
+	return false;
+}
+
+/* stock line alignment */
 
 void sde_encoder_kickoff(struct drm_encoder *drm_enc, bool config_changed)
 {
 	struct sde_encoder_virt *sde_enc;
 	struct sde_encoder_phys *phys;
 	struct sde_kms *sde_kms;
+	struct drm_bridge *bridge;
+	struct dsi_bridge *c_bridge;
+	struct dsi_display *display = NULL;
+	struct dsi_display_mode mode;
 	unsigned int i;
+	u32 new_fps = 0;
+	static u32 old_fps;
 
 	if (!drm_enc) {
 		SDE_ERROR("invalid encoder\n");
@@ -6873,6 +6946,27 @@ void sde_encoder_kickoff(struct drm_encoder *drm_enc, bool config_changed)
 	/* delay frame kickoff based on expected present time */
 	_sde_encoder_delay_kickoff_processing(sde_enc);
 
+	if (sde_enc->disp_info.intf_type == DRM_MODE_CONNECTOR_DSI) {
+		bridge = drm_bridge_chain_get_first_bridge(drm_enc);
+		if (!bridge) {
+			SDE_ERROR("sde_encoder_kickoff bridge is not available\n");
+			return;
+		}
+		c_bridge = container_of(bridge, struct dsi_bridge, base);
+		mode = c_bridge->dsi_mode;
+		display = c_bridge->display;
+		if (display && display->panel &&
+		    (mode.dsi_mode_flags & DSI_MODE_FLAG_VRR)) {
+			new_fps = mode.timing.refresh_rate;
+			mutex_lock(&display->panel->panel_lock);
+			if (!is_skip_stage_fps_cmd_send(old_fps, new_fps, 1)) {
+				SDE_ATRACE_BEGIN("sde_encoder_vid_wait_for_active1");
+				sde_encoder_vid_wait_for_active(drm_enc);
+				SDE_ATRACE_END("sde_encoder_vid_wait_for_active1");
+			}
+		}
+	}
+
 	/* All phys encs are ready to go, trigger the kickoff */
 	_sde_encoder_kickoff_phys(sde_enc, config_changed);
 
@@ -6881,6 +6975,22 @@ void sde_encoder_kickoff(struct drm_encoder *drm_enc, bool config_changed)
 		phys = sde_enc->phys_encs[i];
 		if (phys && phys->ops.handle_post_kickoff)
 			phys->ops.handle_post_kickoff(phys);
+	}
+
+	if (display && display->panel &&
+	    (mode.dsi_mode_flags & DSI_MODE_FLAG_VRR)) {
+		if (!is_skip_stage_fps_cmd_send(old_fps, new_fps, 1)) {
+			if (old_fps == 30)
+				dsi_display_update_dma_sched_line(display, 6000);
+			else if (old_fps == 60)
+				dsi_display_update_dma_sched_line(display, 1800);
+			SDE_ATRACE_BEGIN("kirby set1");
+			dsi_panel_match_fps_pen_setting(display->panel, &mode, 1);
+			SDE_ATRACE_END("kirby set1");
+			dsi_display_update_dma_sched_line(display, 1);
+		}
+		old_fps = mode.timing.refresh_rate;
+		mutex_unlock(&display->panel->panel_lock);
 	}
 
 	if (sde_enc->autorefresh_solver_disable &&
@@ -6915,6 +7025,9 @@ void sde_encoder_helper_get_pp_line_count(struct drm_encoder *drm_enc,
 		}
 	}
 }
+
+/* stock line alignment */
+
 
 void sde_encoder_get_transfer_time(struct drm_encoder *drm_enc,
 			u32 *transfer_time_us)
@@ -7765,6 +7878,38 @@ static int sde_encoder_virt_add_phys_encs(
 
 	return 0;
 }
+
+u32 sde_encoder_get_clones(struct drm_encoder *drm_enc)
+{
+	struct drm_encoder *enc;
+	u32 clones = drm_encoder_mask(drm_enc);
+
+	drm_for_each_encoder(enc, drm_enc->dev) {
+		if (drm_enc->encoder_type == DRM_MODE_ENCODER_VIRTUAL) {
+			if (enc->encoder_type != DRM_MODE_ENCODER_VIRTUAL)
+				clones |= drm_encoder_mask(enc);
+		} else if (enc->encoder_type == DRM_MODE_ENCODER_VIRTUAL) {
+			clones |= drm_encoder_mask(enc);
+		}
+	}
+
+	return clones;
+}
+
+/* stock line alignment */
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 static int sde_encoder_virt_add_phys_enc_wb(struct sde_encoder_virt *sde_enc,
 		struct sde_enc_phys_init_params *params)

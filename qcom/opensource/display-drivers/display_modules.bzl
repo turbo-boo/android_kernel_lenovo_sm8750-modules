@@ -152,6 +152,8 @@ module_entry(
             "msm/dsi/dsi_panel.c",
             "msm/dsi/dsi_clk_manager.c",
             "msm/dsi/dsi_display_test.c",
+            "msm/dsi/dsi_bias.c",
+            "msm/dsi/dsi_bl.c",
          ],
          "CONFIG_DSI_PARSER" : [
             "msm/dsi/dsi_parser.c",

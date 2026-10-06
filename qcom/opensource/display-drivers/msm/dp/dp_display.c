@@ -229,7 +229,7 @@ struct dp_display_private {
 	u32 phy_idx;
 	u32 stream_cnt;
 };
-
+/* stock line alignment */
 static const struct dp_display_type_info dp_info = {
 	.display_type = DRM_MODE_CONNECTOR_DisplayPort,
 };
@@ -245,7 +245,6 @@ static const struct of_device_id dp_dt_match[] = {
 	  .data = &edp_info,},
 	{}
 };
-
 static inline bool dp_display_is_hdcp_enabled(struct dp_display_private *dp)
 {
 	return dp->link->hdcp_status.hdcp_version && dp->hdcp.ops;
@@ -321,6 +320,7 @@ static void dp_audio_enable(struct dp_display_private *dp, bool enable)
 	}
 }
 
+/* stock line alignment */
 static void dp_display_qos_request(struct dp_display_private *dp, bool add_vote)
 {
 	struct device *cpu_dev;
@@ -2260,7 +2260,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		dp->no_aux_switch = true;
 	}
 
-	if (!strcmp(dp->aux_switch_node->name, "fsa4480"))
+	if (!strcmp(dp->aux_switch_node->name, "fsa4480_i2c"))
 		dp->switch_type = DP_AUX_SWITCH_FSA4480;
 	else if (!strcmp(dp->aux_switch_node->name, "wcd939x_i2c"))
 		dp->switch_type = DP_AUX_SWITCH_WCD939x;
@@ -4048,6 +4048,8 @@ static int dp_display_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, dp);
+	/* stock line alignment */
+
 
 	dp_display = &dp->dp_display;
 	g_dp_display[index] = dp_display;
@@ -4099,7 +4101,6 @@ static int dp_display_probe(struct platform_device *pdev)
 	dp_display->get_display_type = dp_display_get_display_type;
 	dp_display->mst_get_fixed_topology_display_type =
 				dp_display_mst_get_fixed_topology_display_type;
-
 	dp_display->is_edp = (info->display_type == DRM_MODE_CONNECTOR_eDP) ? true : false;
 	dp_display->edp_detect = dp_display_edp_detect;
 
@@ -4166,7 +4167,6 @@ int dp_display_get_num_of_streams(struct drm_device *dev)
 			continue;
 
 		dp = container_of(g_dp_display[i], struct dp_display_private, dp_display);
-
 		count += dp->stream_cnt;
 	}
 

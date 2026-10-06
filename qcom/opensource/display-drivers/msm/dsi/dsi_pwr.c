@@ -419,7 +419,7 @@ int dsi_pwr_enable_regulator(struct dsi_regulator_info *regs, bool enable)
 	}
 
 	if (enable) {
-		if (regs->refcount == 0) {
+		if (regs->refcount == 0 || !nvt_gesture_flag) {
 			rc = dsi_pwr_enable_vregs(regs, true);
 			if (rc)
 				DSI_ERR("failed to enable regulators\n");
@@ -431,7 +431,7 @@ int dsi_pwr_enable_regulator(struct dsi_regulator_info *regs, bool enable)
 					regs->vregs->vreg_name);
 		} else {
 			regs->refcount--;
-			if (regs->refcount == 0) {
+			if (regs->refcount == 0 || !nvt_gesture_flag) {
 				rc = dsi_pwr_enable_vregs(regs, false);
 				if (rc)
 					DSI_ERR("failed to disable vregs\n");

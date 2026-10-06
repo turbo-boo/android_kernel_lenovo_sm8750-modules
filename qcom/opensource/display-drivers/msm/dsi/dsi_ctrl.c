@@ -375,6 +375,8 @@ dsi_ctrl_get_aspace(struct dsi_ctrl *dsi_ctrl,
 	return msm_gem_smmu_address_space_get(dsi_ctrl->drm_dev, domain);
 }
 
+/* stock line alignment */
+
 static void dsi_ctrl_dma_cmd_wait_for_done(struct dsi_ctrl *dsi_ctrl)
 {
 	int ret = 0;
@@ -1417,6 +1419,8 @@ static void dsi_configure_command_scheduling(struct dsi_ctrl *dsi_ctrl,
 	 *	1) No schedule line defined by the panel.
 	 *	2) schedule line defined is greater than VFP.
 	 */
+/* stock line alignment */
+
 	if ((dsi_ctrl->host_config.panel_mode == DSI_OP_VIDEO_MODE) &&
 		dsi_hw_ops.schedule_dma_cmd &&
 		(dsi_ctrl->current_state.vid_engine_state ==
@@ -1424,7 +1428,7 @@ static void dsi_configure_command_scheduling(struct dsi_ctrl *dsi_ctrl,
 		sched_line_no = (line_no == 0) ? 1 : line_no;
 
 		if (timing) {
-			if (sched_line_no >= timing->v_front_porch)
+			if (!lcm_2k && sched_line_no >= timing->v_front_porch)
 				sched_line_no = 1;
 			sched_line_no += timing->v_back_porch +
 				timing->v_sync_width + timing->v_active;

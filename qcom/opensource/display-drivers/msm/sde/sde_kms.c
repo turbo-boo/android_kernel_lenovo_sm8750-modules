@@ -1383,14 +1383,18 @@ static void sde_kms_prepare_commit(struct msm_kms *kms,
 	 * configuration only after completing preparation for secure
 	 * transitions prepare below if any transtions is required.
 	 */
+	SDE_ATRACE_BEGIN("sde_kms_prepare_secure_transition");
 	sde_kms_prepare_secure_transition(kms, state);
+	SDE_ATRACE_END("sde_kms_prepare_secure_transition");
 
 	vm_ops = sde_vm_get_ops(sde_kms);
 	if (!vm_ops)
 		goto end_vm;
 
+	SDE_ATRACE_BEGIN("vm_prepare_commit");
 	if (vm_ops->vm_prepare_commit)
 		vm_ops->vm_prepare_commit(sde_kms, state);
+	SDE_ATRACE_END("vm_prepare_commit");
 
 end_vm:
 	_sde_kms_drm_check_dpms(state, true);
@@ -2475,8 +2479,13 @@ static int _sde_kms_drm_obj_init(struct sde_kms *sde_kms)
 	}
 
 	/* All CRTCs are compatible with all encoders */
-	for (i = 0; i < priv->num_encoders; i++)
-		priv->encoders[i]->possible_crtcs = (1 << priv->num_crtcs) - 1;
+	for (i = 0; i < priv->num_encoders; i++) {
+		priv->encoders[i]->possible_crtcs =
+			(1 << priv->num_crtcs) - 1;
+		if (catalog->max_cwb)
+			priv->encoders[i]->possible_clones =
+				sde_encoder_get_clones(priv->encoders[i]);
+	}
 
 	return 0;
 fail:
@@ -2488,7 +2497,6 @@ fail_irq:
 
 /**
  * sde_kms_timeline_status - provides current timeline status
- *    This API should be called without mode config lock.
  * @dev: Pointer to drm device
  */
 void sde_kms_timeline_status(struct drm_device *dev)
