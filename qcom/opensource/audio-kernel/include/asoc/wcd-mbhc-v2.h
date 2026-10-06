@@ -625,8 +625,9 @@ struct wcd_mbhc {
 	bool force_linein;
 	struct device_node *wcd_usbss_aatc_dev_np;
 	struct device_node *fsa_aatc_dev_np;
-	struct device_node *aatc_dev_np;
 	struct notifier_block aatc_dev_nb;
+	struct device_node *fsa_sub_aatc_dev_np;
+	struct notifier_block fsa_sub_aatc_dev_nb;
 
 	struct extcon_dev *extdev;
 };
