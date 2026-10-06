@@ -72,7 +72,8 @@ def _define_target_modules(target, variant, registry, modules, product = None, c
             srcs = srcs,
             out = "{}.ko".format(module.name),
             deps = deps,
-            local_defines = options.keys(),
+            local_defines = options.keys() + module.local_defines,
+            copts = module.copts,
         )
 
         submodule_rules.append(rule_name)
@@ -91,7 +92,7 @@ def _define_target_modules(target, variant, registry, modules, product = None, c
 def create_module_registry(hdrs = []):
     module_map = {}
 
-    def register(name, path = None, config_option = None, srcs = [], conditional_srcs = {}, deps = []):
+    def register(name, path = None, config_option = None, srcs = [], conditional_srcs = {}, deps = [], local_defines = [], copts = []):
         module_map[name] = struct(
             name = name,
             path = path,
@@ -99,6 +100,8 @@ def create_module_registry(hdrs = []):
             conditional_srcs = _create_module_conditional_src_map(conditional_srcs),
             config_option = config_option,
             deps = deps,
+            local_defines = local_defines,
+            copts = copts,
         )
 
     return struct(

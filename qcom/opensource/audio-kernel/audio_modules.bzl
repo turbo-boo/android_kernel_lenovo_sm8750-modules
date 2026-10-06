@@ -544,6 +544,26 @@ audio_modules.register(
     deps = [":%b_swr_dlkm",
 	],
 )
+# >>>> AW882XX MODULES <<<<
+audio_modules.register(
+    name = "aw882xx_dlkm",
+    path = ASOC_CODECS_PATH + "/aw882xx",
+    config_option = "CONFIG_SND_SOC_AW882XX",
+    srcs = [
+        "src/aw882xx_bin_parse.c",
+        "src/aw882xx_calib.c",
+        "src/aw882xx_device.c",
+        "src/aw882xx_dsp.c",
+        "src/aw882xx_init.c",
+        "src/aw882xx_monitor.c",
+        "src/aw882xx_spin.c",
+        "src/aw882xx.c",
+    ],
+    deps = [":aw882xx_headers",
+	],
+    local_defines = ["AW_AUDIOREACH_PLATFORM", "DEBUG"],
+    copts = ["-Wno-format-extra-args"],
+)
 # >>>> WCD9378 MODULES <<<<
 audio_modules.register(
     name = "wcd9378_dlkm",
