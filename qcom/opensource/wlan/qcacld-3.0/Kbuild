@@ -55,6 +55,13 @@ include \
 
 include $(WLAN_ROOT)/configs/$(CONFIG_QCA_CLD_WLAN_PROFILE)_defconfig
 
+# Kconfig: WLAN_MULTI_CHIP_SUPPORT selects WLAN_DISABLE_EXPORT_SYMBOL. The
+# defconfig is included directly here, so apply the select by hand; otherwise
+# every variant exports the same symbols and only one of them can load.
+ifeq ($(CONFIG_WLAN_MULTI_CHIP_SUPPORT), y)
+CONFIG_WLAN_DISABLE_EXPORT_SYMBOL := y
+endif
+
 # add configurations in WLAN_CFG_OVERRIDE
 $(foreach cfg, $(WLAN_CFG_OVERRIDE), \
 	$(eval $(cfg)) \
