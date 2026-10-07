@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 include $(WLAN_PLATFORM_ROOT)/cnss2/sun_gki_defconfig
-ccflags-y += -Wmissing-prototypes
+ccflags-y += -Wmissing-prototypes -Wno-error=missing-prototypes
 
 ifeq ($(CONFIG_CNSS_OUT_OF_TREE),y)
 ccflags-y += -I$(WLAN_PLATFORM_ROOT)/cnss_utils
