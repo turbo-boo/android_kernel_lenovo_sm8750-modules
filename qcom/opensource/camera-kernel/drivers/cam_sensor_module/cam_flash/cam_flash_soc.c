@@ -409,7 +409,13 @@ int cam_flash_get_dt_data(struct cam_flash_ctrl *fctrl,
 			fctrl->flash_type = CAM_FLASH_TYPE_PMIC;
 		}
 
-	if (fctrl->flash_type == CAM_FLASH_TYPE_I2C) {
+	/*
+	 * PMIC flash nodes either reference LED class devices through "leds"
+	 * or name the flash/torch/switch LED triggers through the legacy
+	 * "flash-source"/"torch-source"/"switch-source" phandles.
+	 */
+	if (fctrl->flash_type == CAM_FLASH_TYPE_I2C ||
+		!of_property_present(of_node, "leds")) {
 		rc = cam_get_source_node_info(of_node, fctrl, soc_info->soc_private);
 		if (rc) {
 			CAM_ERR(CAM_FLASH,
